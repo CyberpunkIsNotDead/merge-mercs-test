@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+# Dev Dockerfile — runs TypeScript directly with tsx + hot reload
+
+FROM node:22-bookworm-slim
+
+ENV NODE_ENV=development
+ENV PORT=3000
+
+WORKDIR /app
+
+RUN apk add --no-cache dumb-init wget netcat-openbsd libstdc++ openssl > /dev/null 2>&1 || true
+
+COPY package*.json ./
+COPY prisma/schema.prisma ./prisma/
+RUN npm install && \
+    npx prisma generate --schema=./prisma/schema.prisma || true
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
+
+ENTRYPOINT ["dumb-init", "sh", "/app/docker/dev-entrypoint.sh"]
+CMD ["npx", "tsx", "watch", "src/server.ts"]

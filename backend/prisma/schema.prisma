@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(uuid())
+  tokenHash      String    @unique
+  createdAt      DateTime  @default(now())
+  dailyReward    DailyReward?
+}
+
+model DailyReward {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  currentDay    Int      @default(1)
+  lastClaimedAt DateTime?
+  totalCoins    Int      @default(0)
+  cycleStartedAt DateTime @default(now())
+}

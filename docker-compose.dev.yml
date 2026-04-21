@@ -1,0 +1,51 @@
+# ═══════════════════════════════════════════════════════════
+# Development environment
+# Run: docker-compose -f docker-compose.dev.yml up
+# ═══════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: daily-rewards-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-daily_rewards}
+      POSTGRES_USER: ${POSTGRES_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d daily_rewards"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: daily-rewards-api-dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dev}:${POSTGRES_PASSWORD:-dev}@db:5432/${POSTGRES_DB:-daily_rewards}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      POSTGRES_HOST: db
+      PORT: 3000
+    ports:
+      - "${API_PORT:-3000}:3000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+      - ./backend/docker/dev-entrypoint.sh:/app/docker/dev-entrypoint.sh
+      - ./backend/package.json:/app/package.json
+      - ./backend/tsconfig.json:/app/tsconfig.json
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data-dev:
