@@ -1,105 +1,113 @@
 local socket = require("socket")
-local json = require("cjson")
+local json = require("lib.json")
 
 local API_BASE = "http://localhost:3000"
 
-local function parseResponse(response)
-    local bodyStart = response:find("\r\n\r\n") or response:find("\n\n")
-    if not bodyStart then
-        return nil, "Invalid response format"
+-- Parse HTTP response into {status, data} or throws on error
+local function parseResponse(raw)
+    local crlfIdx = raw:find("\r\n\r\n")
+    if not crlfIdx then error("No HTTP headers/body separator found in response") end
+    
+    local headerSection = raw:sub(1, crlfIdx - 1)
+    local body = raw:sub(crlfIdx + 4):gsub("^%s*(.-)%s*$", "%1")
+    
+    -- Extract status code from first line "HTTP/1.1 200 OK"
+    local statusCode = tonumber(headerSection:match("(%d%d%d)"))
+    if not statusCode then error("Invalid HTTP status line: " .. headerSection) end
+    
+    -- Parse JSON body
+    local data = nil
+    if body and #body > 0 then
+        local ok, decoded = pcall(json.decode, body)
+        if not ok then error("Failed to parse JSON response: " .. tostring(decoded)) end
+        data = decoded
     end
     
-    local body = response:sub(bodyStart + 4):gsub("^%s*(.-)%s*$", "%1")
-    
-    if body == "" then
-        return {}
-    end
-    
-    local ok, data = pcall(json.decode, body)
-    if not ok then
-        return nil, "Failed to parse JSON: " .. tostring(data)
-    end
-    
-    return data, nil
+    return { status = statusCode, data = data }
 end
 
-local function request(method, path, headers, body)
-    local host, portStr = API_BASE:gsub("http://", ""):gsub("https://", "")
-    local colonPos = host:find(":")
+-- Make an HTTP request. Returns (resultTable, nil) on success or (nil, errorMessage) on failure.
+local function request(method, path, headers, bodyTable)
+    -- Parse API_BASE into host and port
+    local url = API_BASE:gsub("http://", ""):gsub("https://", "")
+    local colonPos = url:find(":")
     
+    local host, portStr
     if not colonPos then
-        host = host
+        host = url
         portStr = "80"
     else
-        host = host:sub(1, colonPos - 1)
-        portStr = host:sub(colonPos + 1)
-        host = host:sub(1, colonPos - 1)
+        host = url:sub(1, colonPos - 1)
+        portStr = url:sub(colonPos + 1)
     end
     
+    -- Connect with retries (handles brief unavailability or slow start)
     local sock = socket.tcp()
-    sock:settimeout(10)
+    sock:settimeout(30)
     
-    local ok, err = sock:connect(host, tonumber(portStr))
-    if not ok then
-        return nil, "Connection failed: " .. tostring(err)
+    local connected = false
+    for attempt = 1, 5 do
+        local ok, err = sock:connect(host, tonumber(portStr))
+        if ok then connected = true; break end
+        if attempt < 5 then socket.sleep(0.5) end
     end
     
-    local requestLine = method .. " " .. path .. " HTTP/1.1\r\n"
-    requestLine = requestLine .. "Host: " .. host .. "\r\n"
-    requestLine = requestLine .. "Connection: close\r\n"
-    
-    headers = headers or {}
-    for key, value in pairs(headers) do
-        requestLine = requestLine .. key .. ": " .. value .. "\r\n"
+    if not connected then
+        return nil, "Failed to connect to " .. host .. ":" .. portStr .. " — is the server running?"
     end
     
-    if body then
-        local bodyStr = type(body) == "string" and body or json.encode(body)
-        requestLine = requestLine .. "Content-Length: " .. #bodyStr .. "\r\n"
-        requestLine = requestLine .. "Content-Type: application/json\r\n"
-        
-        sock:send(requestLine .. "\r\n" .. bodyStr)
-    else
-        requestLine = requestLine .. "\r\n"
-        sock:send(requestLine)
+    -- Encode body as JSON string
+    local bodyStr = ""
+    local contentType = nil
+    if bodyTable ~= nil and type(bodyTable) == "table" then
+        contentType = "application/json"
+        bodyStr = json.encode(bodyTable)
+    elseif bodyTable ~= nil and type(bodyTable) == "string" then
+        bodyStr = bodyTable
     end
     
-    local response, status = sock:receive("*l")
-    if not response then
-        sock:close()
-        return nil, "No response received"
+    -- Build HTTP request line + headers
+    local reqLines = { method .. " " .. path .. " HTTP/1.1" }
+    table.insert(reqLines, "Host: " .. host)
+    table.insert(reqLines, "Connection: close")
+    
+    if contentType then
+        table.insert(reqLines, "Content-Type: " .. contentType)
+        table.insert(reqLines, "Content-Length: " .. #bodyStr)
     end
     
-    local lines = {}
-    while true do
-        local line
-        line, status = sock:receive("*l")
-        if not line or (line == "" and #lines > 0) then
-            break
+    if headers then
+        for key, value in pairs(headers) do
+            table.insert(reqLines, key .. ": " .. value)
         end
-        table.insert(lines, line)
     end
     
+    -- Send request (header + body separated by \r\n\r\n)
+    local requestFull = table.concat(reqLines, "\r\n") .. "\r\n\r\n" .. bodyStr
+    sock:send(requestFull)
+    
+    -- Receive full response into a single string
+    local rawResponse = sock:receive("*a")
     sock:close()
     
-    local statusCode = tonumber(response:match("(%d%d%d)"))
-    if not statusCode then
-        return nil, "Invalid response status: " .. tostring(statusCode)
+    if not rawResponse or #rawResponse < 1 then
+        return nil, "No data received from server"
     end
     
-    local bodyText = ""
-    for _, line in ipairs(lines) do
-        if #line > 0 then
-            bodyText = bodyText .. (bodyText ~= "" and "\n" or "") .. line
-        end
-    end
-    
-    local ok, data = pcall(json.decode, bodyText)
+    -- Parse the HTTP response (status line + headers + body)
+    local ok, resultOrErr = pcall(parseResponse, rawResponse)
     if not ok then
-        return nil, "Failed to parse JSON response: " .. tostring(data)
+        return nil, tostring(resultOrErr)
     end
     
-    return { status = statusCode, data = data }, nil
+    local result = resultOrErr
+    
+    -- If server returned error status (4xx, 5xx), still try to extract data from body
+    if result.status >= 400 and result.data then
+        return { status = result.status, data = result.data }, nil
+    end
+    
+    return { status = result.status, data = result.data or {} }, nil
 end
 
 local function get(path, token)
@@ -109,24 +117,28 @@ local function get(path, token)
     end
     
     local result, err = request("GET", path, headers)
-    if not result then
-        return nil, err
+    if not result then return nil, err end
+    
+    -- Handle error responses from server (409 cooldown, 401 unauthorized, etc.)
+    if type(result.data) == "table" and result.data.error then
+        return nil, result.data.error .. ": " .. tostring(result.data.message or "")
     end
     
     return result.data, nil
 end
 
-local function post(path, body, token)
-    local headers = {
-        ["Content-Type"] = "application/json"
-    }
+local function post(path, bodyTable, token)
+    local headers = { ["Content-Type"] = "application/json" }
     if token then
         headers["Authorization"] = "Bearer " .. token
     end
     
-    local result, err = request("POST", path, headers, body)
-    if not result then
-        return nil, err
+    local result, err = request("POST", path, headers, bodyTable or {})
+    if not result then return nil, err end
+    
+    -- Handle error responses from server
+    if type(result.data) == "table" and result.data.error then
+        return nil, result.data.error .. ": " .. tostring(result.data.message or "")
     end
     
     return result.data, nil

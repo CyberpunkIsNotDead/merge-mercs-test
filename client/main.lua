@@ -38,11 +38,11 @@ DAY_INDICATOR_SIZE = 40
 
 function love.load()
     love.window.setMode(800, 600)
-    love.graphics.setFont(love.graphics.getNewFont(24))
+    love.graphics.setFont(love.graphics.newFont(24))
     
-    state.fontSmall = love.graphics.getNewFont(16)
-    state.fontLarge = love.graphics.getNewFont(32)
-    state.fontTitle = love.graphics.getNewFont(28, "bold")
+    state.fontSmall = love.graphics.newFont(16)
+    state.fontLarge = love.graphics.newFont(32)
+    state.fontTitle = love.graphics.newFont(28)
     
     BUTTON_X = 300
     BUTTON_Y = 420
@@ -82,21 +82,15 @@ function loadDailyRewards()
     state.isLoading = false
 end
 
+local function checkCooldown()
+    -- Server returns cooldown_until timestamp; client just displays current state
+    -- No need to poll — server has the authoritative data
+end
+
 function love.update(dt)
     -- Check cooldown periodically
     if not state.showResult and not state.isLoading and state.rewardState then
         checkCooldown()
-    end
-end
-
-local function checkCooldown()
-    local now = os.time() * 1000
-    if state.rewardState.last_claimed_at then
-        local lastClaimed = tonumber(state.rewardState.last_claimed_at) or 0
-        if lastClaimed > 0 and (now - lastClaimed) < 5 * 60 * 1000 then
-            -- Cooldown active, refresh state after delay
-            -- For simplicity, we just check on button click
-        end
     end
 end
 

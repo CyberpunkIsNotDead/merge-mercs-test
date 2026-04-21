@@ -183,118 +183,6 @@ stop_backend() {
 }
 
 # ─── Client Management ─────────────────────────────────────────
-# ─── cjson dependency for LÖVE2D client ──────────────────────
-install_cjson() {
-    local love_dir
-    if command -v love &>/dev/null; then
-        love_dir="$(dirname "$(command -v love)")/.."
-    else
-        return 1
-    fi
-    
-    # Check where LÖVE looks for Lua modules (platform-specific)
-    local cjson_path=""
-    case "$(uname -s)" in
-        Darwin*)
-            # macOS: ~/Library/Application Support/Love/modules or /usr/local/share/lua/5.1
-            cjson_path="$(find "$HOME/Library/Application Support/Love" \
-                          "/usr/local/share/lua/5.4" "/usr/local/share/lua/5.3" "/usr/local/share/lua/5.2" \
-                          -name "cjson.so" -o -name "cjson.lua" 2>/dev/null | head -1)"
-            ;;
-        Linux*)
-            # Ubuntu/Debian: /usr/lib/x86_64-linux-gnu/lua/ or ~/.local/share/Love/modules
-            cjson_path="$(find "$HOME/.local/share/Love" \
-                          "/usr/lib/x86_64-linux-gnu/lua" \
-                          -name "cjson.so" -o -name "cjson.lua" 2>/dev/null | head -1)"
-            ;;
-        MINGW*|MSYS*|CYGWIN*)
-            # Windows: check in the Love installation directory
-            cjson_path="$(find 'C:/Program Files/LOVE' "$HOME/.local/share/Love" \
-                          -name "cjson.dll" -o -name "cjson.lua" 2>/dev/null | head -1)"
-            ;;
-    esac
-    
-    if [ -n "$cjson_path" ]; then
-        ok "cjson found at $cjson_path"
-        return 0
-    fi
-    
-    warn "cjson (Lua JSON library) not found — attempting to install..."
-    
-    # Try LuaRocks first (preferred method)
-    if command -v luarocks &>/dev/null; then
-        info "Installing cjson via luarocks..."
-        if luarocks install cjson 2>/dev/null || \
-           luarocks --local install cjson 2>/dev/null; then
-            ok "cjson installed successfully"
-            return 0
-        fi
-    fi
-    
-    # Fallback: download prebuilt binary (Linux x86_64)
-    if uname -m | grep -q 'x86_64'; then
-        local target_dir=""
-        
-        case "$(uname -s)" in
-            Darwin*)
-                target_dir="$HOME/Library/Application Support/Love/modules"
-                ;;
-            Linux*)
-                # Check system lua paths first, fallback to ~/.local/share/Love/modules
-                for d in /usr/lib/x86_64-linux-gnu/lua/5.3 \
-                         /usr/lib/x86_64-linux-gnu/lua/5.2 \
-                         /usr/local/lib/lua/5.3; do
-                    if [ -d "$d" ]; then target_dir="$d"; break; fi
-                done
-                [ -z "$target_dir" ] && target_dir="$HOME/.local/share/Love/modules"
-                ;;
-        esac
-        
-        if [ -n "$target_dir" ]; then
-            mkdir -p "$target_dir" 2>/dev/null
-            
-            # Download from a reliable source (GitHub release)
-            local cjson_url="https://raw.githubusercontent.com/mpx/lua-cjson/master/cjson.so"
-            
-            info "Downloading prebuilt cjson to $target_dir..."
-            if curl -fsSL --max-time 10 -o "$target_dir/cjson.so" "$cjson_url" 2>/dev/null; then
-                # If we got HTML (404), try alternative URL
-                if head -c 5 "$target_dir/cjson.so" | grep -q '<!DOCTYPE'; then
-                    rm -f "$target_dir/cjson.so"
-                    cjson_url="https://github.com/mpx/lua-cjson/raw/master/cjson.so"
-                    curl -fsSL --max-time 10 -o "$target_dir/cjson.so" "$cjson_url" 2>/dev/null || true
-                fi
-                
-                if [ -f "$target_dir/cjson.so" ] && \
-                   file "$target_dir/cjson.so" | grep -qi 'elf\|mach-o'; then
-                    ok "cjson installed to $target_dir"
-                    return 0
-                else
-                    rm -f "$target_dir/cjson.so"
-                fi
-            fi
-        fi
-    fi
-    
-    error "Failed to install cjson automatically."
-    echo ""
-    echo "Install it manually:"
-    case "$(uname -s)" in
-        Darwin*)
-            echo "  brew install lua-cjson"
-            ;;
-        Linux*)
-            echo "  sudo apt install lua5.3-cjson   # Ubuntu/Debian"
-            echo "  sudo dnf install lua-cjson       # Fedora/RHEL"
-            ;;
-        MINGW*|MSYS*|CYGWIN*)
-            echo "  Download cjson.dll from: https://github.com/mpx/lua-cjson/"
-            echo "  Place it in your LOVE installation directory (e.g. C:\\Program Files\\LOVE)"
-            ;;
-    esac
-    return 1
-}
-
 # ─── Client Management ─────────────────────────────────────────
 start_client() {
     header "Starting LÖVE2D Client"
@@ -306,9 +194,6 @@ start_client() {
     fi
     
     check_command love || return 1
-    
-    # Ensure cjson is available (required by client/lib/api.lua)
-    install_cjson || { warn "cjson missing — client will fail at runtime"; }
     
     info "Opening game window..."
     echo ""
