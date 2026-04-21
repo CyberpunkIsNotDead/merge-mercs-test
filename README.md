@@ -1,5 +1,7 @@
 # Daily Rewards - Game Feature Implementation
 
+Built with local AI assistance (Qwen 3.6 via Kilo Code). See [prompts.md](./prompts.md) for the full conversation history and all decisions made during development.
+
 A complete client-server implementation of a daily rewards system with **TypeScript** backend, PostgreSQL database, and LÖVE2D Lua client.
 
 ## Quick Start (5 minutes)
