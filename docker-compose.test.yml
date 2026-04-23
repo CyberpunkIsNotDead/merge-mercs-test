@@ -13,11 +13,16 @@ services:
       - "5433:5432"
     volumes:
       - test-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test_daily_rewards"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.test
     container_name: daily-rewards-test-api
     environment:
       DATABASE_URL: postgresql://test:test@db:5432/test_daily_rewards
@@ -42,27 +47,7 @@ services:
     volumes:
       - .:/app
     working_dir: /app
-    entrypoint: ["bash", "-c"]
-    command: >
-      bash -e -c '
-        echo "=== Running Backend Tests ===" &&
-        cd backend && npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 &&
-        npx vitest run --reporter=verbose 2>&1 &&
-        echo "" &&
-        echo "=== Running Client Lua Tests ===" &&
-        lua5.3 -e "
-          local busted = require(\"busted\")
-          busted.run({
-            paths = { \"/app/client/tests/ui_tests.lua\" },
-            summary = true,
-            output = \"Test Output\"
-          })
-        " 2>&1 || echo "Busted not available, running manual tests" &&
-        lua5.3 /app/client/tests/json_tests.lua 2>&1 &&
-        lua5.3 /app/client/tests/ui_tests.lua 2>&1 &&
-        echo "" &&
-        echo "=== All Tests Complete ==="
-      '
+    command: ["bash", "-e", "-c", "bash scripts/run_tests.sh"]
 
 volumes:
   test-db-data:

@@ -8,7 +8,7 @@
 #   ./start.sh client           # Start only the LÖVE2D client  
 #   ./start.sh docker-dev       # Start via Docker Compose dev mode
 #   ./start.sh docker-prod      # Start via Docker Compose prod mode
-#   ./start.sh test             # Run unit tests
+#   ./start.sh test             # Run tests (Docker if available, native fallback)
 #   ./start.sh clean            # Stop containers and processes
 #   ./start.sh help             # Show this help message
 # ═══════════════════════════════════════════════════════════
@@ -210,9 +210,49 @@ start_client() {
     love .
 }
 
+# ─── Docker Tests ──────────────────────────────────────────────
+run_docker_tests() {
+    header "Running Docker Tests"
+    
+    check_command docker || { error "Docker not available"; return 1; }
+    
+    local compose_file="$SCRIPT_DIR/docker-compose.test.yml"
+    if [ ! -f "$compose_file" ]; then
+        error "docker-compose.test.yml not found"; return 1
+    fi
+    
+    info "Building test images..."
+    docker-compose -f "$compose_file" build --quiet 2>&1
+    
+    info "Starting test environment (DB + API)..."
+    docker-compose -f "$compose_file" up -d db api 2>&1
+    
+    info "Running tests..."
+    local rc=0
+    docker-compose -f "$compose_file" run --rm tests 2>&1 || rc=$?
+    
+    if [ $rc -ne 0 ]; then
+        error "Docker tests failed (exit code: $rc)"
+    fi
+    
+    info "Stopping test environment..."
+    docker-compose -f "$compose_file" down 2>&1
+    
+    return $rc
+}
+
 # ─── Tests ─────────────────────────────────────────────────────
 run_tests() {
     header "Running Unit Tests"
+    
+    # Prefer Docker tests when available (isolated, reproducible)
+    if command -v docker &>/dev/null && [ -f "$SCRIPT_DIR/docker-compose.test.yml" ]; then
+        info "Using Docker test environment..."
+        run_docker_tests || exit $?
+        return
+    fi
+    
+    warn "Docker unavailable — falling back to native tests"
     
     local lua_available=false
     if command -v lua &>/dev/null; then
@@ -346,7 +386,7 @@ Commands:
   frontend      Run LÖVE2D client
   docker-dev    Everything in Docker (development)
   docker-prod   Everything in Docker (production)
-   test          Run unit tests (backend + client Lua)
+  test          Run tests (Docker if available, native fallback)
   clean         Stop everything and remove containers
   help          Show this message
 
