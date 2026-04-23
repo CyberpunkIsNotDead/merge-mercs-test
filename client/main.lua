@@ -31,7 +31,7 @@ local state = {
 local BUTTON_X, BUTTON_Y, BUTTON_W, BUTTON_H
 DAY_INDICATOR_SIZE = 40
 DAY_INDICATOR_START_X = 120
-DAY_INDICATOR_SPACING = 85
+DAY_INDICATOR_SPACING = 95
 
 function love.load()
     love.window.setMode(800, 600)
@@ -275,34 +275,19 @@ function drawDayIndicators()
         love.graphics.rectangle("fill", x - DAY_INDICATOR_SIZE/2, y - DAY_INDICATOR_SIZE/2, 
                                 DAY_INDICATOR_SIZE, DAY_INDICATOR_SIZE, 8, 8)
         
-        -- Draw day number centered in box
+        -- Draw day number centered in box (no wrapping)
         love.graphics.setColor(COLORS.text[1]/255, COLORS.text[2]/255, COLORS.text[3]/255)
-        love.graphics.printf(tostring(i), x - DAY_INDICATOR_SIZE/2, y - 6, DAY_INDICATOR_SIZE, "center")
+        local dayText = tostring(i)
+        love.graphics.printf(dayText, x - DAY_INDICATOR_SIZE/2, y - 6, DAY_INDICATOR_SPACING, "center")
         
-        -- Draw coins below the box with proper wrapping
+        -- Draw coins below the box (no wrapping)
         local coins = getCoinsForDay(i)
         if coins then
             local coinsText = "+" .. tostring(coins)
             
-            -- Measure text width and wrap if needed
             love.graphics.setFont(state.fontSmall)
-            local textWidth = love.graphics.getWidth(coinsText)
-            local maxWidth = DAY_INDICATOR_SIZE
-            
-            if textWidth > maxWidth then
-                -- Split into multiple lines (e.g., "+1000" -> "+1", "000")
-                local splitPoint = math.ceil(#coinsText / 2)
-                local line1 = coinsText:sub(1, splitPoint)
-                local line2 = coinsText:sub(splitPoint + 1)
-                
-                love.graphics.setColor(COLORS.textDim[1]/255, COLORS.textDim[2]/255, COLORS.textDim[3]/255)
-                love.graphics.printf(line1, x - DAY_INDICATOR_SIZE/2, y + DAY_INDICATOR_SIZE/2 + 5, maxWidth, "center")
-                love.graphics.printf(line2, x - DAY_INDICATOR_SIZE/2, y + DAY_INDICATOR_SIZE/2 + 23, maxWidth, "center")
-            else
-                love.graphics.setColor(COLORS.textDim[1]/255, COLORS.textDim[2]/255, COLORS.textDim[3]/255)
-                love.graphics.printf(coinsText, x - DAY_INDICATOR_SIZE/2, y + DAY_INDICATOR_SIZE/2 + 5, 
-                                     maxWidth, "center")
-            end
+            love.graphics.setColor(COLORS.textDim[1]/255, COLORS.textDim[2]/255, COLORS.textDim[3]/255)
+            love.graphics.printf(coinsText, x - DAY_INDICATOR_SIZE/2, y + DAY_INDICATOR_SIZE/2 + 5, DAY_INDICATOR_SPACING, "center")
             
             -- Reset font
             love.graphics.setFont(state.fontTitle)
@@ -319,13 +304,12 @@ function drawRewardInfo()
     love.graphics.setFont(state.fontSmall)
     love.graphics.print("TOTAL COINS", leftX, labelY)
     
-    -- Value: use printf to wrap large numbers within a fixed width
+    -- Value: print directly without wrapping
     love.graphics.setColor(COLORS.success[1]/255, COLORS.success[2]/255, COLORS.success[3]/255)
     love.graphics.setFont(state.fontLarge)
     if state.rewardState then
         local coinsText = tostring(state.rewardState.total_coins or 0)
-        -- printf will wrap the text within 120px width so it never overflows
-        love.graphics.printf(coinsText, leftX, labelY + 25, 120, "left")
+        love.graphics.print(coinsText, leftX, labelY + 25)
     end
     
     -- Current day section (below total coins)
@@ -338,7 +322,7 @@ function drawRewardInfo()
         local dayText = "Day " .. tostring(state.rewardState.current_day)
         love.graphics.setColor(COLORS.dayActive[1]/255, COLORS.dayActive[2]/255, COLORS.dayActive[3]/255)
         love.graphics.setFont(state.fontLarge)
-        love.graphics.printf(dayText, leftX, dayInfoY + 25, 120, "left")
+        love.graphics.print(dayText, leftX, dayInfoY + 25)
     end
 end
 
@@ -387,55 +371,16 @@ function drawResultPopup()
                       state.resultType == "cooldown" and "COOLDOWN" or "ERROR"
     love.graphics.print(titleText, popupX + 100, popupY + 25)
     
-    -- Message with proper word wrapping based on text width (not character count)
+    -- Message using printf for proper word wrapping
     love.graphics.setColor(COLORS.text[1]/255, COLORS.text[2]/255, COLORS.text[3]/255)
     love.graphics.setFont(state.fontSmall)
     
-    local maxLineWidth = popupW - 40 -- 20px padding each side
-    local lines = {}
-    for line in state.resultMessage:gmatch("[^\n]+") do
-        table.insert(lines, line)
-    end
+    local messageX = popupX + 30
+    local messageY = popupY + 70
+    local messageW = popupW - 60
     
-    -- Wrap each line using actual text width measurement
-    local finalLines = {}
-    for _, line in ipairs(lines) do
-        local textWidth = love.graphics.getWidth(line)
-        
-        if textWidth > maxLineWidth then
-            -- Word wrap by splitting at spaces
-            local words = {}
-            for word in line:gmatch("%S+") do
-                table.insert(words, word)
-            end
-            
-            local currentLine = ""
-            for _, word in ipairs(words) do
-                local testLine
-                if #currentLine > 0 then
-                    testLine = currentLine .. " " .. word
-                else
-                    testLine = word
-                end
-                
-                if love.graphics.getWidth(testLine) > maxLineWidth and #currentLine > 0 then
-                    table.insert(finalLines, currentLine)
-                    currentLine = word
-                else
-                    currentLine = testLine
-                end
-            end
-            if #currentLine > 0 then
-                table.insert(finalLines, currentLine)
-            end
-        else
-            table.insert(finalLines, line)
-        end
-    end
-    
-    for i, line in ipairs(finalLines) do
-        love.graphics.print(line, popupX + 20, popupY + 70 + (i - 1) * 25)
-    end
+    -- Use printf which handles word wrapping correctly at space boundaries
+    love.graphics.printf(state.resultMessage, messageX, messageY, messageW)
     
     -- Hint to close
     love.graphics.setColor(COLORS.textDim[1]/255, COLORS.textDim[2]/255, COLORS.textDim[3]/255)
