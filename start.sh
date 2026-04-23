@@ -72,12 +72,10 @@ start_database() {
     local db_user="${POSTGRES_USER:-dev}"
     local db_pass="${POSTGRES_PASSWORD:-dev}"
     
-    if docker ps --format '{{.Names}}' | grep -qx "$DB_CONTAINER_NAME" 2>/dev/null; then
-        info "Container '$DB_CONTAINER_NAME' already exists"
-        if docker inspect --format='{{.State.Status}}' "$DB_CONTAINER_NAME" 2>/dev/null | grep -q running; then
-            ok "Database running on port $db_port"
-            return 0
-        fi
+    # Remove any existing container with this name (running or stopped)
+    if docker ps -a --format '{{.Names}}' | grep -qx "$DB_CONTAINER_NAME" 2>/dev/null; then
+        info "Removing existing '$DB_CONTAINER_NAME' container..."
+        docker rm -f "$DB_CONTAINER_NAME" 2>/dev/null || true
     fi
     
     # Check if port is already in use by any other container
@@ -88,12 +86,17 @@ start_database() {
     fi
     
     info "Starting PostgreSQL in Docker..."
+    
+    # Create persistent volume if it doesn't exist
+    docker volume create "$DB_CONTAINER_NAME-data" 2>/dev/null || true
+    
     docker run -d \
         --name "$DB_CONTAINER_NAME" \
         -e POSTGRES_DB="$db_name" \
         -e POSTGRES_USER="$db_user" \
         -e POSTGRES_PASSWORD="$db_pass" \
         -p "${db_port}:5432" \
+        -v "$DB_CONTAINER_NAME-data:/var/lib/postgresql/data" \
         --restart unless-stopped \
         postgres:16-alpine
     
@@ -264,7 +267,7 @@ clean_up() {
     
     stop_backend
     
-    docker rm -f "$DB_CONTAINER_NAME" 2>/dev/null && ok "Removed DB container" || warn "No DB container found"
+    docker rm -f "$DB_CONTAINER_NAME" 2>/dev/null && ok "Removed DB container (data preserved in volume)" || warn "No DB container found"
     pkill -x love 2>/dev/null && ok "Stopped LÖVE client" || true
     
     rm -f "$PID_FILE" .backend.log .backend.pid
@@ -396,7 +399,7 @@ main() {
             info "API: http://localhost:${API_PORT:-3000}"
             
             # Keep alive for Ctrl+C handling
-            trap 'echo -e "\n${YELLOW}Shutting down...${NC}"; stop_backend; docker rm -f "$DB_CONTAINER_NAME" 2>/dev/null || true; exit 0' INT TERM
+            trap 'echo -e "\n${YELLOW}Shutting down...${NC}"; stop_backend; docker stop "$DB_CONTAINER_NAME" 2>/dev/null || true; exit 0' INT TERM
             
             wait
             ;;
@@ -410,6 +413,6 @@ main() {
 }
 
 # Global Ctrl+C handler for daemon mode
-trap 'echo -e "\n${YELLOW}Shutting down...${NC}"; stop_backend; exit 0' INT TERM
+trap 'echo -e "\n${YELLOW}Shutting down...${NC}"; stop_backend; docker stop "$DB_CONTAINER_NAME" 2>/dev/null || true; exit 0' INT TERM
 
 main "$@"
