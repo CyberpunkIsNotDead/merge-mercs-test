@@ -16,7 +16,7 @@ Context: The test task specifies a simple Lua client with LÖVE or Defold that s
 
 ---
 
-**Prompt 3:** Add TypeScript + finalize LÖVE2D client (with image showing UI design)
+**Prompt 3:** Add TypeScript + finalize LÖVE2D client
 > do these two things:
 > 1. add typescript to backend. choose the simpliest approach: compilation or run ts natively, explain your choice.
 > 2. test task contains this: "... и простой клиент на LUA движок Defold или LÖVE (Love2D). "
@@ -65,7 +65,7 @@ Image provided showed a mockup with: 7-day progress indicators, day labels, coin
 
 ---
 
-**Final Prompt:** Create prompts.md
+**Prompt 16:** Create prompts.md
 > take all user prompts from our conversation, write them to prompts.md file. in readme, at the top, mention that project was created with local Qwen 3.6 assistance, and link file.
 
 ---
@@ -163,3 +163,25 @@ Context: Old database schema still had `userId` NOT NULL constraint from previou
 Context: User rejected the idea of recreating database on startup (which was a workaround). Instead requested creating a proper Prisma migration to remove the userId column from existing databases while preserving data. Created `20260423_remove_userid/migration.sql` with safe DROP statements using IF EXISTS clauses.
 
 ---
+
+**Prompt 29:** Loop detection
+> you are in loop again
+
+Context: User noticed the assistant was stuck in a repetitive cycle and called it out.
+
+---
+
+**Prompt 30:** Add new prompts to prompts.md
+> add new prompts to prompts.md
+
+Context: User requested adding recent prompts to the file.
+
+---
+
+**Prompt 31:** Reorganize + analyze prompts
+> 1. reorganize prompts file (remember that the order is right, but so-called "last prompt" is not actually last)
+> 2. analyze what is already added, compare to user prompts in this conversation
+> 3. add new user prompts if any
+> do not overcomplicate.
+
+Context: User wants proper reorganization and verification that all prompts are captured correctly without adding unnecessary complexity.

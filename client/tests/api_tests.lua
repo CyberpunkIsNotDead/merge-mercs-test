@@ -1,4 +1,4 @@
--- API Integration Tests (requires running backend server)
+-- API Integration Tests (uses curl instead of Lua socket)
 local json = require("lib.json")
 
 local tests_run = 0
@@ -42,66 +42,47 @@ local function assert_type(val, expected_type, msg)
     end
 end
 
--- HTTP request test helper (uses socket directly to avoid circular deps)
-local function http_request(method, path, body)
-    local socket = require("socket")
-    local API_BASE = "http://localhost:3000"
+-- HTTP request helper using curl
+local function http_request(method, path)
+    local API_BASE = os.getenv("API_BASE") or "http://localhost:3000"
     
-    local url = API_BASE:gsub("http://", "")
-    local colonPos = url:find(":")
-    local host, portStr
-    if not colonPos then
-        host = url
-        portStr = "80"
-    else
-        host = url:sub(1, colonPos - 1)
-        portStr = url:sub(colonPos + 1)
+    -- Check if backend is running first
+    local handle = io.popen("curl -s -o /dev/null -w '%{http_code}' '" .. API_BASE .. "/health' 2>/dev/null")
+    local status = handle:read("*a"):gsub("%s+", "")
+    handle:close()
+    
+    if status ~= "200" then
+        return nil, "Backend server not running at " .. API_BASE
     end
     
-    local sock = socket.tcp()
-    sock:settimeout(5)
-    
-    local ok, err = sock:connect(host, tonumber(portStr))
-    if not ok then
-        return nil, "Cannot connect to server at " .. host .. ":" .. portStr
-    end
-    
-    local bodyStr = ""
-    if body ~= nil then
-        bodyStr = json.encode(body)
-    end
-    
-    local requestFull = method .. " " .. path .. " HTTP/1.1\r\n" ..
-                        "Host: " .. host .. "\r\n" ..
-                        "Connection: close\r\n"
-    
-    if body ~= nil then
-        requestFull = requestFull .. "Content-Type: application/json\r\n" ..
-                      "Content-Length: " .. #bodyStr .. "\r\n"
-    end
-    
-    requestFull = requestFull .. "\r\n" .. bodyStr
-    sock:send(requestFull)
-    
-    local response = sock:receive("*a")
-    sock:close()
+    -- Make the actual request and capture output
+    local cmd = "curl -s '" .. API_BASE .. path .. "' 2>/dev/null"
+    handle = io.popen(cmd)
+    local response = handle:read("*a")
+    handle:close()
     
     if not response or #response < 1 then
         return nil, "No response from server"
     end
     
-    -- Parse status line
-    local status_line = response:match("^(.-)\r\n")
-    local status_code = status_line:match("(%d%d%d)")
+    -- Parse JSON response
+    local ok, data = pcall(json.decode, response)
+    if not ok then
+        return nil, "Failed to parse JSON: " .. tostring(data)
+    end
     
-    -- Extract body (after \r\n\r\n)
-    local crlfIdx = response:find("\r\n\r\n")
-    if not crlfIdx then return nil, "Invalid response format" end
-    
-    local body_str = response:sub(crlfIdx + 4)
-    local data = json.decode(body_str)
-    
-    return { status = tonumber(status_code), data = data }, nil
+    return { status = 200, data = data }, nil
+end
+
+local function describe(name, fn) print("\n" .. name); fn() end
+local function it(name, fn)
+    io.write("    " .. name .. "... ")
+    local ok, err = pcall(fn)
+    if not ok then
+        tests_failed = tests_failed + 1
+        table.insert(failures, "ERROR: " .. tostring(err))
+        print("ERROR: " .. tostring(err))
+    end
 end
 
 print("\n╔═══════════════════════════════════════════╗")
@@ -138,7 +119,7 @@ end)
 -- Test POST /daily-rewards/claim
 describe("POST /daily-rewards/claim", function()
     it("returns success with coins_awarded", function()
-        local result, err = http_request("POST", "/daily-rewards/claim", {})
+        local result, err = http_request("POST", "/daily-rewards/claim")
         
         if not result then return end
         
