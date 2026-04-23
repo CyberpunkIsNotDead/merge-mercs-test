@@ -212,12 +212,57 @@ start_client() {
 
 # ─── Tests ─────────────────────────────────────────────────────
 run_tests() {
-    header "Running Unit Tests (18 tests)"
+    header "Running Unit Tests"
     
+    local lua_available=false
+    if command -v lua &>/dev/null; then
+        check_command lua || true
+        lua_available=true
+    else
+        warn "Lua not found — skipping client tests (install lua5.3 or later)"
+    fi
+    
+    echo ""
+    info "Backend tests (TypeScript + Vitest)..."
     cd "$BACKEND_DIR"
     [ -d node_modules ] || npm install --silent 2>/dev/null
-    
     npx vitest run --reporter=verbose 2>&1
+    local backend_result=$?
+    
+    if [ $backend_result -ne 0 ]; then
+        error "Backend tests failed"
+    fi
+    
+    echo ""
+    if [ "$lua_available" = true ]; then
+        info "Client tests (Lua JSON library)..."
+        cd "$CLIENT_DIR"
+        
+        # Run JSON unit tests
+        lua tests/json_tests.lua
+        local json_result=$?
+        
+        if [ $json_result -ne 0 ]; then
+            error "JSON tests failed"
+        fi
+        
+        echo ""
+        info "Client API integration tests (requires running backend)..."
+        curl -s http://localhost:${API_PORT:-3000}/health &>/dev/null
+        if [ $? -eq 0 ]; then
+            lua tests/api_tests.lua
+            local api_result=$?
+            
+            if [ $api_result -ne 0 ]; then
+                warn "API integration tests failed (backend may have changed behavior)"
+            fi
+        else
+            warn "Backend not running — skipping API integration tests"
+        fi
+    fi
+    
+    header "Test Results"
+    return $((backend_result))
 }
 
 # ─── Docker Mode ────────────────────────────────────────────────
@@ -292,7 +337,7 @@ Commands:
   frontend      Run LÖVE2D client
   docker-dev    Everything in Docker (development)
   docker-prod   Everything in Docker (production)
-  test          Run unit tests
+   test          Run unit tests (backend + client Lua)
   clean         Stop everything and remove containers
   help          Show this message
 
