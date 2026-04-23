@@ -1,3 +1,21 @@
-Server running on port 3000
-2:36:30 PM [tsx] change in ./src/utils/constants.ts Restarting...
-cServer running on port 3000
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Function.listen (/home/neuro/dev/merge-mercs-test/backend/node_modules/express/lib/application.js:635:24)
+    at <anonymous> (/home/neuro/dev/merge-mercs-test/backend/src/server.ts:19:16)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+
+Node.js v22.14.0

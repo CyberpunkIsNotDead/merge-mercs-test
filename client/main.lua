@@ -10,6 +10,7 @@ local COLORS = {
     success = { 80, 200, 120, 255 },
     warning = { 220, 160, 50, 255 },
     danger = { 220, 70, 70, 255 },
+    dayActive = { 220, 180, 40, 255 },
 }
 
 -- Game State
