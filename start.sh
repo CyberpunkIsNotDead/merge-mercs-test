@@ -80,6 +80,13 @@ start_database() {
         fi
     fi
     
+    # Check if port is already in use by any other container
+    if docker ps --format '{{.Ports}}' | grep -q ":${db_port}->"; then
+        error "Port ${db_port} is already in use by another container"
+        docker ps --filter "publish=${db_port}" --format '{{.Names}}: {{.Ports}}'
+        return 1
+    fi
+    
     info "Starting PostgreSQL in Docker..."
     docker run -d \
         --name "$DB_CONTAINER_NAME" \

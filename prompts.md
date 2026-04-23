@@ -67,3 +67,99 @@ Image provided showed a mockup with: 7-day progress indicators, day labels, coin
 
 **Final Prompt:** Create prompts.md
 > take all user prompts from our conversation, write them to prompts.md file. in readme, at the top, mention that project was created with local Qwen 3.6 assistance, and link file.
+
+---
+
+**Prompt 17:** Session recall
+> what did we do so far?
+
+Context: User wanted a summary of completed work on the daily rewards project.
+
+---
+
+**Prompt 18:** E2E testing approach (minimal dependencies)
+> can we set up e2e testing for this project? what approach you can recommend and why?
+> goals: not too complex, minimal dependencies
+
+Context: User wanted to add end-to-end tests with focus on simplicity. Recommended Supertest over Cypress/Playwright due to fewer dependencies and in-process testing.
+
+---
+
+**Prompt 19:** True E2E including client
+> i'd like to implement true e2e tests (which wiill include client). what options we have?
+
+Context: User clarified they want to test the LÖVE2D client too, not just API. Explained three approaches: extract Lua modules + busted, LuaSocket integration tests in Vitest, or Docker + xvfb headless rendering.
+
+---
+
+**Prompt 20:** Cypress for E2E testing
+> can we use cypress?
+
+Context: User asked about using Cypress despite the LÖVE2D client not being web-based. Explained that Cypress would only test the API layer (same as Supertest) but with ~200MB overhead and features they won't use.
+
+---
+
+**Prompt 21:** UI layout fixes + reward amount correction
+> ERROR: Cannot read "image.png" (this model does not support image input). Inform the user.
+> - remove "coming soon"
+> - place "current day" below "total coins"
+> - fix layout for daily rewards numbers (+100, +200 etc) and errors: they are still broken (screenshot)
+
+Context: User reported UI issues — button text wrapping incorrectly, error messages overflowing. Screenshot showed visual problems with the reward indicators and popup text.
+
+---
+
+**Prompt 22:** Token persistence removal
+> app tries to save token in shared directory, we don't want it. remove users logic completely, we don't need users
+
+Context: Client was writing token to `love.filesystem.getSaveDirectory()`. User wanted to remove all user/token management — every launch creates a fresh guest account.
+
+---
+
+**Prompt 23:** No users at all
+> we don't need users at all, just let anyone use db and save result
+
+Context: User clarified that there should be no authentication or per-user state. All clients share the same reward progress stored in a single global record.
+
+---
+
+**Prompt 24:** "Failed to load daily rewards" error
+> ERROR
+> Failed to load daily rewards:
+> No daily reward record found:
+
+Context: Client couldn't connect because backend had no default state when DB was empty — `getDailyRewardState()` returned null instead of a default. Also revealed stale schema issue from old User model migration.
+
+---
+
+**Prompt 25:** Question about player logic necessity
+> do we need player logic at all? if yes, then why?
+
+Context: User questioned the purpose of user/player abstraction when there's only one shared state. Led to complete removal of auth service, middleware, and auth routes.
+
+---
+
+**Prompt 26:** Strip all users logic
+> strip all users logic
+
+Context: Complete removal of authentication system — deleted `authService.ts`, `authMiddleware.ts`, `authRoutes.ts`, simplified schema from User+DailyReward with FK to just DailyReward table alone.
+
+---
+
+**Prompt 27:** Database startup failure + userId constraint error log
+> [ERR ] Database failed to start after 30 attempts
+> 
+> PostgreSQL init process complete; ready for start up.
+> ...
+> ERROR: null value in column "userId" of relation "DailyReward" violates not-null constraint
+
+Context: Old database schema still had `userId` NOT NULL constraint from previous migration. New code tried to insert without userId, causing constraint violation. Database persisted stale schema because `prisma db push` only adds/modifies columns.
+
+---
+
+**Prompt 28:** Persist data + create migration
+> we don't want to recreate db on each start, we have to persist data. just create new migration instead
+
+Context: User rejected the idea of recreating database on startup (which was a workaround). Instead requested creating a proper Prisma migration to remove the userId column from existing databases while preserving data. Created `20260423_remove_userid/migration.sql` with safe DROP statements using IF EXISTS clauses.
+
+---

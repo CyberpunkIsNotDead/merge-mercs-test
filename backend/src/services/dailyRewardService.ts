@@ -1,16 +1,21 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import type { DailyRewardState, ClaimResult, CooldownError } from '../types/index.js';
 import { REWARD_SCHEDULE, COOLDOWN_MS, RESET_THRESHOLD_MS, MAX_DAY } from '../utils/constants.js';
 
 const prisma = new PrismaClient();
 
-export async function getDailyRewardState(userId: string): Promise<DailyRewardState | null> {
-  const dailyReward = await prisma.dailyReward.findUnique({
-    where: { userId }
-  });
+export async function getDailyRewardState(): Promise<DailyRewardState | null> {
+  const dailyReward = await prisma.dailyReward.findFirst();
 
   if (!dailyReward) {
-    return null;
+    return {
+      current_day: 1,
+      total_coins: 0,
+      can_claim: true,
+      cooldown_until: null,
+      coins_to_win: REWARD_SCHEDULE[0],
+      reset_needed: false
+    };
   }
 
   let canClaim: boolean = false;
@@ -46,14 +51,12 @@ export async function getDailyRewardState(userId: string): Promise<DailyRewardSt
   };
 }
 
-export async function claimDailyReward(userId: string): Promise<ClaimResult> {
+export async function claimDailyReward(): Promise<ClaimResult> {
   return await prisma.$transaction(async (tx) => {
-    let dailyReward = await tx.dailyReward.findUnique({
-      where: { userId }
-    });
-
+    let dailyReward = await tx.dailyReward.findFirst();
+    
     if (!dailyReward) {
-      throw new Error('No daily reward record found');
+      dailyReward = await tx.dailyReward.create({ data: { currentDay: 1, totalCoins: 0 } });
     }
 
     const now: number = Date.now();
@@ -83,8 +86,8 @@ export async function claimDailyReward(userId: string): Promise<ClaimResult> {
 
     const coinsAwarded: number = REWARD_SCHEDULE[currentDay - 1] || REWARD_SCHEDULE[0];
 
-    await tx.dailyReward.update({
-      where: { userId },
+    await tx.dailyReward.updateMany({
+      where: { id: dailyReward.id },
       data: {
         currentDay,
         lastClaimedAt: new Date(),

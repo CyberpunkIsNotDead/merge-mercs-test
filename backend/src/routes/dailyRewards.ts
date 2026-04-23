@@ -1,18 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { getDailyRewardState, claimDailyReward } from '../services/dailyRewardService.js';
-import { authMiddleware } from '../middleware/authMiddleware.js';
 import type { CooldownError } from '../types/index.js';
 
 const router: Router = Router();
 
-router.get('/', authMiddleware, async (req: Request & { userId?: string }, res: Response): Promise<void> => {
+router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!req.userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-    
-    const state = await getDailyRewardState(req.userId);
+    const state = await getDailyRewardState();
     
     if (!state) {
       res.status(404).json({ error: 'No daily reward record found' });
@@ -26,14 +20,9 @@ router.get('/', authMiddleware, async (req: Request & { userId?: string }, res: 
   }
 });
 
-router.post('/claim', authMiddleware, async (req: Request & { userId?: string }, res: Response): Promise<void> => {
+router.post('/claim', async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!req.userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-    
-    const result = await claimDailyReward(req.userId);
+    const result = await claimDailyReward();
 
     res.json({
       success: result.success,

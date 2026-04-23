@@ -1,16 +1,5 @@
-export interface GuestResponse {
-  user_id: string;
-  token: string;
-}
-
-export interface AuthVerificationResult {
-  userId: string;
-  dailyReward: Record<string, any> | null;
-}
-
 export interface DailyRewardRecord {
   id: string;
-  userId: string;
   currentDay: number;
   lastClaimedAt: Date | null;
   totalCoins: number;
