@@ -21,8 +21,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     curl \
     lua5.3 \
-    liblua5.3-dev && \
+    liblua5.3-dev \
+    luarocks \
+    make gcc libc6-dev && \
     rm -rf /var/lib/apt/lists/*
+
+RUN luarocks install busted 2>&1 || true
 
 WORKDIR /app
 

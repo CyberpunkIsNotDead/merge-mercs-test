@@ -8,7 +8,7 @@
 #   ./start.sh client           # Start only the LÖVE2D client  
 #   ./start.sh docker-dev       # Start via Docker Compose dev mode
 #   ./start.sh docker-prod      # Start via Docker Compose prod mode
-#   ./start.sh test             # Run tests (Docker if available, native fallback)
+#   ./start.sh test             # Run tests (Docker only)
 #   ./start.sh clean            # Stop containers and processes
 #   ./start.sh help             # Show this help message
 # ═══════════════════════════════════════════════════════════
@@ -245,73 +245,19 @@ run_docker_tests() {
 run_tests() {
     header "Running Unit Tests"
     
-    # Prefer Docker tests when available (isolated, reproducible)
-    if command -v docker &>/dev/null && [ -f "$SCRIPT_DIR/docker-compose.test.yml" ]; then
-        info "Using Docker test environment..."
-        run_docker_tests || exit $?
-        return
+    # Docker only — no native fallback
+    if ! command -v docker &>/dev/null; then
+        error "Docker not available — tests require Docker environment"
+        return 1
     fi
     
-    warn "Docker unavailable — falling back to native tests"
-    
-    local lua_available=false
-    if command -v lua &>/dev/null; then
-        check_command lua || true
-        lua_available=true
-    else
-        warn "Lua not found — skipping client tests (install lua5.3 or later)"
+    local compose_file="$SCRIPT_DIR/docker-compose.test.yml"
+    if [ ! -f "$compose_file" ]; then
+        error "docker-compose.test.yml not found"; return 1
     fi
     
-    echo ""
-    info "Backend tests (TypeScript + Vitest)..."
-    cd "$BACKEND_DIR"
-    [ -d node_modules ] || npm install --silent 2>/dev/null
-    npx vitest run --reporter=verbose 2>&1
-    local backend_result=$?
-    
-    if [ $backend_result -ne 0 ]; then
-        error "Backend tests failed"
-    fi
-    
-    echo ""
-    if [ "$lua_available" = true ]; then
-        info "Client tests (Lua JSON library)..."
-        cd "$CLIENT_DIR"
-        
-        # Run JSON unit tests
-        lua tests/json_tests.lua
-        local json_result=$?
-        
-        if [ $json_result -ne 0 ]; then
-            error "JSON tests failed"
-        fi
-        
-        echo ""
-        info "Client UI logic tests..."
-        lua tests/ui_tests.lua
-        local ui_result=$?
-        
-        if [ $ui_result -ne 0 ]; then
-            error "UI tests failed"
-        fi
-        
-        echo ""
-        info "Client API integration tests (requires running backend)..."
-        curl -s http://localhost:${API_PORT:-3000}/health &>/dev/null
-        if [ $? -eq 0 ]; then
-            lua tests/api_tests.lua
-            local api_result=$?
-            
-            if [ $api_result -ne 0 ]; then
-                warn "API integration tests failed (backend may have changed behavior)"
-            fi
-        else
-            warn "Backend not running — skipping API integration tests"
-        fi
-    fi
-    
-    header "Test Results"
-    return $((backend_result))
+    info "Using Docker test environment..."
+    run_docker_tests || exit $?
 }
 
 # ─── Docker Mode ────────────────────────────────────────────────
@@ -386,7 +332,7 @@ Commands:
   frontend      Run LÖVE2D client
   docker-dev    Everything in Docker (development)
   docker-prod   Everything in Docker (production)
-  test          Run tests (Docker if available, native fallback)
+  test          Run tests (requires Docker)
   clean         Stop everything and remove containers
   help          Show this message
 

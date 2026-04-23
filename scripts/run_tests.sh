@@ -19,16 +19,16 @@ echo ""
 echo "=== Running Client Lua Tests ==="
 cd /app/client
 
-lua -e 'package.path = package.path .. ";./lib/?.lua"' tests/json_tests.lua
+busted tests/json_tests.lua 2>&1
 JSON_RC=$?
 
-lua -e 'package.path = package.path .. ";./lib/?.lua"' tests/ui_tests.lua
+busted tests/ui_tests.lua 2>&1
 UI_RC=$?
 
 echo ""
 echo "=== Running API Integration Tests ==="
 if curl -s http://api:3000/health > /dev/null 2>&1; then
-    lua -e 'package.path = package.path .. ";./lib/?.lua"' tests/api_tests.lua
+    busted tests/api_tests.lua 2>&1
     API_RC=$? || true
 else
     echo "API backend unavailable — skipping integration tests"

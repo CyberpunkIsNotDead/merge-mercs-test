@@ -185,3 +185,15 @@ Context: User requested adding recent prompts to the file.
 > do not overcomplicate.
 
 Context: User wants proper reorganization and verification that all prompts are captured correctly without adding unnecessary complexity.
+
+---
+
+**Prompt 32:** Conventional commit + push
+> create one-line commit using conventional commits & push
+
+---
+
+**Prompt 33:** Docker test environment fix
+> docker test environment likely wasn't finished, we need to ensure it works. it should run on "./start.sh test" along with other tests
+
+Context: The Docker test setup was incomplete — `./start.sh test` failed due to Prisma engine binary mismatch (musl vs glibc), missing API container build file, and broken Lua dependencies in the test image. Fixed by creating `backend/Dockerfile.test`, updating `Dockerfile.test` to use Debian instead of Alpine, adding `scripts/run_tests.sh`, and integrating Docker tests into `start.sh`.
