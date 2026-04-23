@@ -1,4 +1,5 @@
 local api = require("lib.api")
+local ui = require("lib.ui")
 
 -- UI Colors
 local COLORS = {
@@ -9,11 +10,6 @@ local COLORS = {
     success = { 80, 200, 120, 255 },
     warning = { 220, 160, 50, 255 },
     danger = { 220, 70, 70, 255 },
-    button = { 60, 110, 180, 255 },
-    buttonHover = { 80, 140, 220, 255 },
-    dayCompleted = { 60, 160, 90, 255 },
-    dayActive = { 220, 180, 40, 255 },
-    dayUpcoming = { 50, 50, 70, 255 },
 }
 
 -- Game State
@@ -21,7 +17,7 @@ local state = {
     rewardState = nil,
     showResult = false,
     resultMessage = "",
-    resultType = "success", -- success, error, cooldown
+    resultType = "success",
     isLoading = true,
     buttonHover = false,
     claimTime = nil,
@@ -102,20 +98,8 @@ local function getCooldownRemaining()
     return nil
 end
 
-local function formatCooldown(seconds)
-    if not seconds or seconds <= 0 then
-        return "0s"
-    end
-    local mins = math.floor(seconds / 60)
-    local secs = math.floor(seconds % 60)
-    
-    if mins > 0 and secs > 0 then
-        return string.format("%dm%ds", mins, secs)
-    elseif mins > 0 then
-        return string.format("%dm", mins)
-    else
-        return string.format("%ds", secs)
-    end
+function formatCooldown(seconds)
+    return ui.formatCooldown(seconds)
 end
 
 function love.update(dt)
@@ -173,30 +157,19 @@ function claimReward()
         state.rewardState.current_day = result.current_day
         
         state.showResult = true
-        state.resultType = "success"
-        
-        local dayText = result.current_day and ("Day " .. result.current_day) or ""
-        if result.reset_occurred then
-            dayText = dayText .. " (Series Reset!)"
-        end
-        
-        state.resultMessage = string.format(
-            "You received %d coins!\n%s",
-            result.coins_awarded,
-            dayText
-        )
+        state.resultMessage = ui.buildSuccessMessage(result)
     else
         state.showResult = true
-        state.resultType = result.error == "COOLDOWN_ACTIVE" and "cooldown" or "error"
+        state.resultType = ui.getPopupType(result)
         
-        if result.retry_after_seconds then
+        if result.error == "COOLDOWN_ACTIVE" and result.retry_after_seconds then
             local minutes = math.ceil(result.retry_after_seconds / 60)
             state.resultMessage = string.format(
                 "Come back in %d minute(s)",
                 minutes
             )
         else
-            state.resultMessage = tostring(result.message or "Failed to claim reward")
+            state.resultMessage = ui.buildErrorMessage(result)
         end
     end
 end
@@ -240,14 +213,6 @@ function drawTitle()
     love.graphics.print("DAILY REWARDS", 250, 40)
 end
 
-function getCoinsForDay(day)
-    local schedule = {100, 200, 300, 400, 500, 600, 1000}
-    if day >= 1 and day <= 7 then
-        return schedule[day]
-    end
-    return nil
-end
-
 function drawDayIndicators()
     local startY = 120
     
@@ -255,19 +220,14 @@ function drawDayIndicators()
         local x = DAY_INDICATOR_START_X + (i - 1) * DAY_INDICATOR_SPACING
         local y = startY
         
-        -- Determine day state
-        local color = COLORS.dayUpcoming
-        if state.rewardState then
-            if i < state.rewardState.current_day then
-                color = COLORS.dayCompleted
-            elseif i == state.rewardState.current_day then
-                color = COLORS.dayActive
-            end
-            
-            if state.rewardState.reset_needed and i <= state.rewardState.current_day then
-                love.graphics.setColor(1, 0.5, 0)
-                love.graphics.printf("RESET", x - 20, y + DAY_INDICATOR_SIZE + 5, 80, "center")
-            end
+        -- Determine day state color using UI module
+        local currentDay = state.rewardState and state.rewardState.current_day or 1
+        local resetNeeded = state.rewardState and state.rewardState.reset_needed or false
+        local color = ui.getDayColor(i, currentDay, resetNeeded)
+        
+        if state.rewardState and state.rewardState.reset_needed and i <= state.rewardState.current_day then
+            love.graphics.setColor(1, 0.5, 0)
+            love.graphics.printf("RESET", x - 20, y + DAY_INDICATOR_SIZE + 5, 80, "center")
         end
         
         -- Draw day box
@@ -281,7 +241,7 @@ function drawDayIndicators()
         love.graphics.printf(dayText, x - DAY_INDICATOR_SIZE/2, y - 6, DAY_INDICATOR_SPACING, "center")
         
         -- Draw coins below the box (no wrapping)
-        local coins = getCoinsForDay(i)
+        local coins = ui.getCoinsForDay(i)
         if coins then
             local coinsText = "+" .. tostring(coins)
             
@@ -327,7 +287,7 @@ function drawRewardInfo()
 end
 
 function drawClaimButton()
-    local color = state.buttonHover and COLORS.buttonHover or COLORS.button
+    local color = ui.getButtonColor(state.buttonHover)
     
     love.graphics.setColor(color[1]/255, color[2]/255, color[3]/255)
     love.graphics.rectangle("fill", BUTTON_X, BUTTON_Y, BUTTON_W, BUTTON_H, 10, 10)
@@ -356,19 +316,15 @@ function drawResultPopup()
     love.graphics.setColor(COLORS.bg[1]/255 + 0.1, COLORS.bg[2]/255 + 0.1, COLORS.bg[3]/255 + 0.1)
     love.graphics.rectangle("fill", popupX, popupY, popupW, popupH, 15, 15)
     
-    -- Popup border
-    local borderColor = state.resultType == "success" and COLORS.success or 
-                        state.resultType == "cooldown" and COLORS.warning or COLORS.danger
-    
+    -- Popup border using UI module
+    local borderColor = ui.getPopupBorderColor(state.resultType)
     love.graphics.setColor(borderColor[1]/255, borderColor[2]/255, borderColor[3]/255)
     love.graphics.rectangle("line", popupX, popupY, popupW, popupH, 15, 15)
     
-    -- Title
+    -- Title using UI module
+    local titleText = ui.getPopupTitle(state.resultType)
     love.graphics.setColor(COLORS.text[1]/255, COLORS.text[2]/255, COLORS.text[3]/255)
     love.graphics.setFont(state.fontTitle)
-    
-    local titleText = state.resultType == "success" and "SUCCESS!" or 
-                      state.resultType == "cooldown" and "COOLDOWN" or "ERROR"
     love.graphics.print(titleText, popupX + 100, popupY + 25)
     
     -- Message using printf for proper word wrapping

@@ -247,6 +247,15 @@ run_tests() {
         fi
         
         echo ""
+        info "Client UI logic tests..."
+        lua tests/ui_tests.lua
+        local ui_result=$?
+        
+        if [ $ui_result -ne 0 ]; then
+            error "UI tests failed"
+        fi
+        
+        echo ""
         info "Client API integration tests (requires running backend)..."
         curl -s http://localhost:${API_PORT:-3000}/health &>/dev/null
         if [ $? -eq 0 ]; then
