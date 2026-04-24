@@ -4,8 +4,10 @@ import { REWARD_SCHEDULE, COOLDOWN_MS, RESET_THRESHOLD_MS, MAX_DAY } from '../ut
 
 const prisma = new PrismaClient();
 
-export async function getDailyRewardState(): Promise<DailyRewardState | null> {
-  const dailyReward = await prisma.dailyReward.findFirst();
+export async function getDailyRewardState(userId: string): Promise<DailyRewardState | null> {
+  const dailyReward = await prisma.dailyReward.findUnique({
+    where: { userId }
+  });
 
   if (!dailyReward) {
     return {
@@ -51,12 +53,25 @@ export async function getDailyRewardState(): Promise<DailyRewardState | null> {
   };
 }
 
-export async function claimDailyReward(): Promise<ClaimResult> {
+export async function claimDailyReward(userId: string): Promise<ClaimResult> {
   return await prisma.$transaction(async (tx) => {
-    let dailyReward = await tx.dailyReward.findFirst();
+    let dailyReward = await tx.dailyReward.findUnique({
+      where: { userId }
+    });
     
     if (!dailyReward) {
-      dailyReward = await tx.dailyReward.create({ data: { currentDay: 1, totalCoins: 0 } });
+      const user = await tx.user.create({
+        data: { id: userId, createdAt: new Date() }
+      });
+      
+      dailyReward = await tx.dailyReward.create({
+        data: {
+          userId,
+          currentDay: 1,
+          totalCoins: 0,
+          cycleStartedAt: new Date()
+        }
+      });
     }
 
     const now: number = Date.now();
@@ -86,7 +101,7 @@ export async function claimDailyReward(): Promise<ClaimResult> {
 
     const coinsAwarded: number = REWARD_SCHEDULE[currentDay - 1] || REWARD_SCHEDULE[0];
 
-    await tx.dailyReward.updateMany({
+    await tx.dailyReward.update({
       where: { id: dailyReward.id },
       data: {
         currentDay,

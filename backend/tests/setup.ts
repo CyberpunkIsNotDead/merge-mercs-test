@@ -4,4 +4,5 @@ const prisma = new PrismaClient();
 
 afterEach(async () => {
   await prisma.dailyReward.deleteMany();
+  await prisma.user.deleteMany();
 });

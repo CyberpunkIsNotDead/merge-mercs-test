@@ -22,6 +22,8 @@ local state = {
     isLoading = true,
     buttonHover = false,
     claimTime = nil,
+    userId = nil,
+    token = nil,
 }
 
 -- UI Dimensions
@@ -43,11 +45,28 @@ function love.load()
     BUTTON_W = 200
     BUTTON_H = 50
     
+    authenticate()
+end
+
+function authenticate()
+    local data, err = api.authGuest()
+    
+    if not data then
+        state.isLoading = false
+        state.showResult = true
+        state.resultMessage = "Failed to authenticate: " .. tostring(err)
+        state.resultType = "error"
+        return
+    end
+    
+    state.userId = data.user_id
+    state.token = data.token
+    
     loadDailyRewards()
 end
 
 function loadDailyRewards()
-    local data, err = api.get("/daily-rewards")
+    local data, err = api.get("/daily-rewards", state.token)
     if not data then
         state.isLoading = false
         state.showResult = true
@@ -144,7 +163,7 @@ function claimReward()
     
     state.claimTime = love.timer.getTime()
     
-    local result, err = api.post("/daily-rewards/claim", {})
+    local result, err = api.post("/daily-rewards/claim", {}, state.token)
     
     if not result then
         state.showResult = true

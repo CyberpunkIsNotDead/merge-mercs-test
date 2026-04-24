@@ -197,3 +197,47 @@ Context: User wants proper reorganization and verification that all prompts are 
 > docker test environment likely wasn't finished, we need to ensure it works. it should run on "./start.sh test" along with other tests
 
 Context: The Docker test setup was incomplete — `./start.sh test` failed due to Prisma engine binary mismatch (musl vs glibc), missing API container build file, and broken Lua dependencies in the test image. Fixed by creating `backend/Dockerfile.test`, updating `Dockerfile.test` to use Debian instead of Alpine, adding `scripts/run_tests.sh`, and integrating Docker tests into `start.sh`.
+
+---
+
+**Prompt 34:** Use proper test framework for Lua files, drop fallback behavior
+> use proper test framework for lua files. drop fallback behavior, we only need docker for tests.
+
+Context: User requested replacing the custom hand-written assertion helpers in Lua client tests with **busted**, the standard Lua BDD testing framework. Removed native (non-Docker) fallback from `start.sh` — tests now require Docker environment exclusively. Converted all three Lua test files (`json_tests.lua`, `ui_tests.lua`, `api_tests.lua`) to use busted assertions and syntax.
+
+---
+
+**Prompt 35:** Coverage analysis
+> what is covered and what is not?
+
+Context: User asked for a test coverage report. Provided detailed breakdown showing backend service layer (100%), client JSON library (100%), client UI logic (100%), API integration (40%), but zero coverage for backend routes/middleware, client API layer, and LÖVE2D game loop. Recommended adding route-level Supertest tests, error path testing, and expanded API integration scenarios.
+
+---
+
+**Prompt 36:** Fix dayActive color nil value
+> Error: main.lua:283: attempt to index field 'dayActive' (a nil value)
+> 
+> Traceback shows the crash occurs in drawRewardInfo() when accessing COLORS.dayActive which was never defined in the COLORS table.
+
+Context: Fixed by adding `dayActive = { 220, 180, 40, 255 }` to the COLORS table in `client/main.lua`.
+
+---
+
+**Prompt 37:** Analysis of test task requirements vs implementation
+> analyze the text below and the project, find what is done and what is not. if anything is missing, create a plan to add it.
+
+Context: User provided the original test task PDF content (Daily Rewards mechanics with Node.js + PostgreSQL + Lua client) and asked for a gap analysis comparing requirements against current implementation. Produced detailed plan identifying 3 critical gaps (auth endpoint, per-user state, client auth integration), 3 medium priority items (status text display, route-level tests, API layer tests), and recommended phased approach to restore auth system.
+
+---
+
+**Prompt 38:** Restore auth system + wire client
+> do 1, 2, 3. skip everything else. fix tests to match the new code. ensure they pass.
+
+Context: User requested implementing the three critical items from the gap analysis: (1) restore `POST /auth/guest` endpoint with JWT auth service and middleware, (2) add `userId` back to DailyReward schema with Prisma migration, (3) wire client to call auth endpoint on startup and pass token to all API requests. Also fixed backend tests to use per-user queries (`findUnique` by userId instead of `findFirst`) and updated client API integration tests to authenticate before making requests. All 79 tests now pass (16 backend + 29 JSON + 27 UI + 7 API).
+
+---
+
+**Prompt 39:** Fix runtime errors after auth restoration
+> read .backend.log and fix errors
+
+Context: After restoring auth system, two issues appeared: (1) Prisma client was out of sync with new schema — `userId` field not recognized because `npx prisma generate` wasn't run; (2) PostgreSQL container was stopped. Fixed by regenerating Prisma client, starting PostgreSQL via Docker, running `prisma db push`, and verifying all endpoints work correctly.
