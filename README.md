@@ -75,7 +75,7 @@ Daily Rewards is a game mechanic where players receive increasing coin rewards f
 | 4   | 400   | 1,000      |
 | 5   | 500   | 1,500      |
 | 6   | 600   | 2,100      |
-| 7   | 700   | 2,800      |
+| 7   | 1000  | 3,100      |
 
 After day 7, the cycle resets to day 1.
 
