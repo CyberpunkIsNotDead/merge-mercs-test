@@ -276,3 +276,10 @@ Context: Removed prefix strings from three error messages in client/main.lua —
 > add all session user prompts to prompts.md. after that, create one-line conventional commit & push
 
 Context: Appended Prompts 42-43 to prompts.md, then created a conventional commit and pushed changes.
+
+---
+
+**Prompt 45:** Update readme, analyze what is needed and what is not
+> update readme, analyze what is needed and what is not
+
+Context: Analyzed README against current codebase — fixed test count (18→16), removed outdated cjson claim, added Testing section with backend/client test breakdown, updated project structure to include missing files (json.lua, ui.lua, client/tests/, docker-compose.test.yml, Dockerfile.test).

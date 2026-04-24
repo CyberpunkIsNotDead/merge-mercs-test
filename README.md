@@ -19,7 +19,7 @@ A complete client-server implementation of a daily rewards system with **TypeScr
 ./start.sh clean      # Stop everything and remove containers
 ```
 
-The script automatically: checks dependencies → starts PostgreSQL in Docker → applies Prisma migrations → launches the TypeScript server with hot reload. It also installs `cjson` (Lua JSON library) if missing for the client.
+The script automatically: checks dependencies → starts PostgreSQL in Docker → applies Prisma migrations → launches the TypeScript server with hot reload.
 
 Before running, copy `.env.example` to `.env` and adjust values as needed:
 
@@ -55,7 +55,7 @@ npx prisma db push      # create tables from schema
 npm run dev             # TypeScript with hot reload via tsx
 
 # 3. Tests
-npm test                # 18 unit + integration tests
+npm test                # 16 backend unit + integration tests
 
 # 4. LÖVE2D client (requires love2d installed)
 cd ../client && love .
@@ -190,7 +190,7 @@ npm run dev          # tsx watch src/server.ts
 npm run build        # tsc compiles to dist/
 npm start            # node dist/src/server.js
 
-# Test suite (18 tests)
+# Test suite (16 tests)
 npm test             # vitest run
 ```
 
@@ -274,6 +274,30 @@ Response (cooldown active - HTTP 409):
 }
 ```
 
+## Testing
+
+### Backend Tests (Vitest)
+
+```bash
+cd backend
+npm test              # 16 unit + integration tests
+```
+
+### Client Tests (Busted via Docker)
+
+```bash
+./start.sh test         # Runs all tests: backend vitest + client busted
+docker-compose -f docker-compose.test.yml up   # or run directly
+```
+
+The test suite includes:
+- **Backend**: Service layer unit tests, Prisma integration tests (16 tests)
+- **Client JSON library**: Pure-Lua encoder/decoder unit tests (~20 tests)
+- **Client UI logic**: Pure function tests for formatting, colors, messages (~30 tests)
+- **API Integration**: Lua client HTTP request/response tests against running API container (~7 tests)
+
+---
+
 ## Project Structure
 
 ```
@@ -299,7 +323,7 @@ daily-rewards/
 │   ├── prisma/
 │   │   └── schema.prisma          # Database schema
 │   ├── tests/
-│   │   ├── services.test.ts       # Unit + integration tests (18 tests)
+│   │   ├── services.test.ts       # Unit + integration tests (16 tests)
 │   │   └── setup.ts               # Test cleanup hook
 │   ├── Dockerfile.dev             # Development image (tsx watch, volumes)
 │   ├── Dockerfile.prod            # Production image (compiled TS)
@@ -310,10 +334,20 @@ daily-rewards/
 ├── client/
 │   ├── main.lua                   # Main game screen with UI
 │   ├── conf.lua                   # LÖVE2D window config
-│   └── lib/
-│       └── api.lua                # HTTP API client for Lua
+│   ├── lib/
+│   │   ├── api.lua                # HTTP API client for Lua
+│   │   ├── json.lua               # Pure-Lua JSON encoder/decoder
+│   │   └── ui.lua                 # UI helper functions (pure)
+│   └── tests/
+│       ├── api_tests.lua          # API integration tests
+│       ├── json_tests.lua         # JSON library unit tests
+│       └── ui_tests.lua           # UI logic unit tests
+├── scripts/
+│   └── run_tests.sh               # Test runner for Docker test environment
 ├── docker-compose.dev.yml         # Development Docker setup
 ├── docker-compose.prod.yml        # Production Docker setup
+├── docker-compose.test.yml        # Test Docker setup (DB + API + tests)
+├── Dockerfile.test                # Combined test image (Node 22 + Lua 5.3 + busted)
 ├── start.sh                       # Unified startup script (DB + backend + client)
 ├── .env.example                   # Environment template (root level)
 └── README.md                      # This file
