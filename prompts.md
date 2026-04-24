@@ -244,14 +244,14 @@ Context: After restoring auth system, two issues appeared: (1) Prisma client was
 
 ---
 
-**Prompt 38:** Add root .gitignore + update README
+**Prompt 40:** Add root .gitignore + update README
 > add root gitignore to ignore backend artifacts & .env. add commit and push. write that we need to copy .env.example in readme (quick start section). remove ignored files from git. commit and push.
 
 Context: Created `.gitignore` with patterns for `.env`, `node_modules/`, `dist/`, logs, IDE files. Removed `.env` from git tracking. Updated README Quick Start section with instruction to copy `.env.example` to `.env`.
 
 ---
 
-**Prompt 39:** Add new prompts to prompts.md
+**Prompt 41:** Add new prompts to prompts.md
 > add all new user prompts to prompts.md
 
 Context: User requested adding recent conversation prompts to the file for documentation purposes.
