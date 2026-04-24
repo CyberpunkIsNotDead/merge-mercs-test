@@ -1,11 +1,3 @@
-export interface DailyRewardRecord {
-  id: string;
-  currentDay: number;
-  lastClaimedAt: Date | null;
-  totalCoins: number;
-  cycleStartedAt: Date;
-}
-
 export interface DailyRewardState {
   current_day: number;
   total_coins: number;

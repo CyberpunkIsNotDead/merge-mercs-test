@@ -54,7 +54,7 @@ function authenticate()
     if not data then
         state.isLoading = false
         state.showResult = true
-        state.resultMessage = "Failed to authenticate: " .. tostring(err)
+        state.resultMessage = tostring(err)
         state.resultType = "error"
         return
     end
@@ -70,7 +70,7 @@ function loadDailyRewards()
     if not data then
         state.isLoading = false
         state.showResult = true
-        state.resultMessage = "Failed to load daily rewards: " .. tostring(err)
+        state.resultMessage = tostring(err)
         state.resultType = "error"
         return
     end
@@ -167,7 +167,7 @@ function claimReward()
     
     if not result then
         state.showResult = true
-        state.resultMessage = "Connection error: " .. tostring(err)
+        state.resultMessage = tostring(err)
         state.resultType = "error"
         return
     end

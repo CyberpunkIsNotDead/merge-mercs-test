@@ -151,6 +151,5 @@ end
 return {
     get = get,
     post = post,
-    authGuest = authGuest,
-    API_BASE = API_BASE
+    authGuest = authGuest
 }

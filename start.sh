@@ -395,7 +395,7 @@ main() {
             # Check dependencies
             header "Checking Dependencies"
             
-            check_command docker || { warn "Docker unavailable — will try native"; HAS_DOCKER=false; }
+                        check_command docker || { warn "Docker unavailable — will try native"; }
             echo ""
             
             if ! command -v node &>/dev/null; then

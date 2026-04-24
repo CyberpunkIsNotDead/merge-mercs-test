@@ -255,3 +255,24 @@ Context: Created `.gitignore` with patterns for `.env`, `node_modules/`, `dist/`
 > add all new user prompts to prompts.md
 
 Context: User requested adding recent conversation prompts to the file for documentation purposes.
+
+---
+
+**Prompt 42:** Find and eliminate dead code
+> find and eliminate dead code
+
+Context: Identified and removed `DailyRewardRecord` interface (unused in backend), `API_BASE` export (only used internally in api.lua), and `HAS_DOCKER` variable assignment (set but never read in start.sh).
+
+---
+
+**Prompt 43:** Fix error modal text
+> fix error modal: only write error text, without "connection error:" and another prefixes
+
+Context: Removed prefix strings from three error messages in client/main.lua — "Failed to authenticate:", "Failed to load daily rewards:", and "Connection error:" — so only the raw error text is displayed.
+
+---
+
+**Prompt 44:** Add all session user prompts to prompts.md
+> add all session user prompts to prompts.md. after that, create one-line conventional commit & push
+
+Context: Appended Prompts 42-43 to prompts.md, then created a conventional commit and pushed changes.
