@@ -1,0 +1,25 @@
+# Environment variables
+.env
+backend/.env
+
+# Node
+node_modules/
+**/*.tsbuildinfo
+dist/
+
+# Database
+*.db
+
+# IDE
+.vscode/*
+!vscode/settings.json
+.vscodeignore
+.kilo/*
+
+# Logs
+*.log
+.log
+
+# OS
+.DS_Store
+Thumbs.db

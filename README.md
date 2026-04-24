@@ -21,6 +21,12 @@ A complete client-server implementation of a daily rewards system with **TypeScr
 
 The script automatically: checks dependencies → starts PostgreSQL in Docker → applies Prisma migrations → launches the TypeScript server with hot reload. It also installs `cjson` (Lua JSON library) if missing for the client.
 
+Before running, copy `.env.example` to `.env` and adjust values as needed:
+
+```bash
+cp .env.example .env
+```
+
 ### Option B: Docker Compose (recommended for production deployments)
 
 ```bash
