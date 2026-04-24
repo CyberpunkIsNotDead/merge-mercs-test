@@ -241,3 +241,17 @@ Context: User requested implementing the three critical items from the gap analy
 > read .backend.log and fix errors
 
 Context: After restoring auth system, two issues appeared: (1) Prisma client was out of sync with new schema — `userId` field not recognized because `npx prisma generate` wasn't run; (2) PostgreSQL container was stopped. Fixed by regenerating Prisma client, starting PostgreSQL via Docker, running `prisma db push`, and verifying all endpoints work correctly.
+
+---
+
+**Prompt 38:** Add root .gitignore + update README
+> add root gitignore to ignore backend artifacts & .env. add commit and push. write that we need to copy .env.example in readme (quick start section). remove ignored files from git. commit and push.
+
+Context: Created `.gitignore` with patterns for `.env`, `node_modules/`, `dist/`, logs, IDE files. Removed `.env` from git tracking. Updated README Quick Start section with instruction to copy `.env.example` to `.env`.
+
+---
+
+**Prompt 39:** Add new prompts to prompts.md
+> add all new user prompts to prompts.md
+
+Context: User requested adding recent conversation prompts to the file for documentation purposes.
